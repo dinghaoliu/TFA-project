@@ -297,7 +297,9 @@ bool CallGraphPass::typeConfineInCast(Type *FromTy, Type *ToTy){
 		transitType(EToTy, EFromTy);
 #ifdef ENABLE_CAST_ESCAPE
 		if(EToTy->isStructTy() && EFromTy->isStructTy()){
-			if(EToTy->getStructName().size() != 0 && EFromTy->getStructName().size() != 0){
+			StructType* EToSTy = dyn_cast<StructType>(EToTy);
+			StructType* EFromSTy = dyn_cast<StructType>(EFromTy);
+			if(!EToSTy->isLiteral() && !EFromSTy->isLiteral()){
 				StringRef To_Ty_name = EToTy->getStructName();
 				StringRef From_Ty_name = EFromTy->getStructName();
 				string parsed_To_Ty_name = parseIdentifiedStructName(To_Ty_name);
@@ -323,8 +325,8 @@ void CallGraphPass::handleCastEscapeType(Type *ToTy, Type *FromTy){
 		if(to_ty_str == "i8*"){
 			Type *Ty = FromTy->getPointerElementType();
 			if(Ty->isStructTy()){
-				
-				if(Ty->getStructName().size() == 0){
+				StructType* STy = dyn_cast<StructType>(Ty);
+				if(STy->isLiteral()){
 					string Ty_name = Ctx->Global_Literal_Struct_Map[typeHash(Ty)];
 					castEscapeSet.insert(Ty_name);
 					typeNameTransitMap[Ty_name].insert("i8");
@@ -343,7 +345,8 @@ void CallGraphPass::handleCastEscapeType(Type *ToTy, Type *FromTy){
 		else if(from_ty_str == "i8*"){
 			Type *Ty = ToTy->getPointerElementType();
 			if(Ty->isStructTy()){
-				if(Ty->getStructName().size() == 0){
+				StructType* STy = dyn_cast<StructType>(Ty);
+				if(STy->isLiteral()){
 					string Ty_name = Ctx->Global_Literal_Struct_Map[typeHash(Ty)];
 					castEscapeSet.insert(Ty_name);
 					typeNameTransitMap[Ty_name].insert("i8");
@@ -364,8 +367,8 @@ void CallGraphPass::handleCastEscapeType(Type *ToTy, Type *FromTy){
 void CallGraphPass::escapeType(StoreInst* SI, Type *Ty, int Idx) {
 
 	if(Ty->isStructTy()){
-
-		if(Ty->getStructName().size() == 0){
+		StructType* STy = dyn_cast<StructType>(Ty);
+		if(STy->isLiteral()){
 			string Ty_name = Ctx->Global_Literal_Struct_Map[typeHash(Ty)];
 			typeEscapeSet.insert(typeNameIdxHash(Ty_name, Idx));
 			hashIDTypeMap[typeNameIdxHash(Ty_name, Idx)] = make_pair(Ty,Idx);

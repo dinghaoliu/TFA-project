@@ -383,7 +383,8 @@ bool TypeBuilderPass::doInitialization(Module *M) {
 
             Type* innerTy = GPType->getArrayElementType();
             if(innerTy->isStructTy()){
-                if(innerTy->getStructName().size() == 0){
+                StructType* innerSTy = dyn_cast<StructType>(innerTy);
+                if(innerSTy->isLiteral()){
                     checkGlobalDebugInfo(GV, Tyhash);
                     targetGVSet.insert(GV);
                 }
@@ -393,8 +394,9 @@ bool TypeBuilderPass::doInitialization(Module *M) {
         }
 
         if(GPType->isStructTy()){
-
-			if(GPType->getStructName().size() == 0){
+        
+            StructType* GPSType = dyn_cast<StructType>(GPType);
+            if(GPSType->isLiteral()){
                 Ctx->num_typebuilder_haveNoStructName++;
                 checkGlobalDebugInfo(GV, Tyhash);
                 targetGVSet.insert(GV);

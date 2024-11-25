@@ -140,7 +140,7 @@ void PrintResults(GlobalContext *GCtx) {
 			escape_icall_num++;
 	}
 
-	OP<<"############## Indirect Call Target Results Statistics ##############\n";
+	OP<<"\n############## Indirect Call Target Results Statistics ##############\n";
 
 	OP<<"# Number icalls \t\t\t\t"<<GCtx->IndirectCallInsts.size()<<"\n";
 	OP<<"# Number total icall targets   \t\t\t"<<GCtx->icallTargets<<"\n";

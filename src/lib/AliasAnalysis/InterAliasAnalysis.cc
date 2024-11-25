@@ -89,6 +89,8 @@ void interCaseHandler(Value* aliased_v, list<Value *>&LV,
     if (isa<ConstantData>(aliased_v)){
         return;
     }
+
+    //OP<<"aliased_v: "<<*aliased_v<<"\n";
     
     //The aliased value is a function
     //Filter this case from checking GlobalValue
@@ -416,6 +418,14 @@ void interCaseHandler(Value* aliased_v, list<Value *>&LV,
         StringRef FName = getCalledFuncName(CAI);
         if(Ctx->HeapAllocFuncs.count(FName.str()))
             return;
+
+        //TODO: handle the llvm.strip.invariant.group
+        if(FName.contains("llvm.strip.invariant.group")){
+            //HandleMove(CAI->getArgOperand(0), CAI, aliasCtx);
+            aliasCtx->Is_Analyze_Success = false;
+            aliasCtx->failreason = strip_invariant_group;
+            return;
+        }
 
         if(!Ctx->Callees.count(CAI))
             return;

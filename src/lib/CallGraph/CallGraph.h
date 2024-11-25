@@ -160,7 +160,7 @@ class CallGraphPass : public IterativeModulePass {
 		bool trackFuncPointer(Value* VO, Value* PO, StoreInst* SI);
 
 		//Support C++ features
-		bool getCPPVirtualFunc(Value* V, int &Idx, string &struct_name);
+		bool getCPPVirtualFunc(Value* V, int &Idx, Type* &Sty);
 		void resolveVariableParameters(CallInst *CI, FuncSet &FS);
   
 		

@@ -146,6 +146,8 @@ void FuncAliasAnalysis(GlobalContext *Ctx){
     }
 
     Ctx->func_support_dataflow_Number = FuncInfluenceMap.size();
+
+    //getchar();
     
     //Update Global Info
     OP<<"\nUpdate global ICallees info\n";

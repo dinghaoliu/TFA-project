@@ -9,6 +9,13 @@ This project includes a prototype implementation of TFA. The foundation behind T
 * Download the source of llvm-project (https://github.com/llvm/llvm-project).
 * Checkout suitable llvm versions (this project is compiled and tested with llvm-15-init).
 * Compile the llvm-project and add the project build path to the Makefile.
+  You could use the following commands to build the llvm project:
+```sh 
+    $ mkdir build
+    $ cd build
+    $ cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE="Release" -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;lld;lldb;openmp" -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" ../llvm
+	$ make 
+```
 
 ### Build the TFA analyzer 
 * Before proceeding with the build process of the analyzer, it is essential to tailor the configuration to match your testing environment and the targets you wish to analyze. Please make the following adjustments:

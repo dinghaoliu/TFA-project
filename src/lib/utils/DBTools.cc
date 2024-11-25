@@ -214,6 +214,9 @@ void build_insert_batch_for_icall_table(GlobalContext *Ctx, int batch_size, vect
                 case init_in_asm:
                     insertss << "\"" << "init_in_asm"  << "\"";
                     break;
+                case strip_invariant_group:
+                    insertss << "\"" << "strip_invariant_group"  << "\"";
+                    break;
                 default:
                     insertss << "\"" << "unknown" << "\"";
                     break;
@@ -394,6 +397,9 @@ void build_insert_batch_for_func_table(GlobalContext *Ctx, int batch_size, vecto
             case init_in_asm:
                 insertss << "\"" << "init_in_asm"  << "\"";
                 break;
+            case strip_invariant_group:
+                    insertss << "\"" << "strip_invariant_group"  << "\"";
+                    break;
             case success:
                 insertss << "\"" << "success"  << "\"";
                 break;

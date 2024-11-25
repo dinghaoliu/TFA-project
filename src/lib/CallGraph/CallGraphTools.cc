@@ -71,7 +71,13 @@ void CallGraphPass::updateStructInfo(Function *F, Type* Ty, int idx, Value* cont
 	}
 
 	//Pre layer is struct without name
-	if(Ty->isStructTy() && Ty->getStructName().size() == 0){
+	bool isLiteralTag = false;
+	if(Ty->isStructTy()){
+		StructType* STy = dyn_cast<StructType>(Ty);
+		isLiteralTag = STy->isLiteral();
+	}
+
+	if(Ty->isStructTy() && isLiteralTag){
 		string Funcname = F->getName().str();
 
 		if(Ctx->Global_Literal_Struct_Map.count(typeHash(Ty))){
@@ -227,7 +233,12 @@ void CallGraphPass::getGlobalFuncs(Function *F, FuncSet &FSet){
 
 bool CallGraphPass::checkValidStructName(Type *Ty){
 
-	if(Ty->getStructName().size() != 0){
+	if(!Ty->isStructTy())
+		return false;
+
+	StructType* STy = dyn_cast<StructType>(Ty);
+
+	if(!STy->isLiteral()){
 
 		auto TyName = Ty->getStructName();
 		if(TyName.contains(".union")){

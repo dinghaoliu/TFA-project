@@ -1,4 +1,5 @@
 #include "CallGraph.h"
+#include <cstddef>
 
 //#define PRINT_LAYER_SET
 //#define ENHANCED_ONE_LAYER_COLLECTION
@@ -22,7 +23,8 @@ bool CallGraphPass::isEscape(Type *LayerTy, int FieldIdx, CallInst *CI){
 
 	//If we use type name, we cannot resolve anon struct
 	if(LayerTy->isStructTy()){
-		if(LayerTy->getStructName().size() == 0){
+		StructType* LayerSTy = dyn_cast<StructType>(LayerTy);
+		if(LayerSTy->isLiteral()){
 			string Ty_name = Ctx->Global_Literal_Struct_Map[typeHash(LayerTy)];
 
 			if(typeEscapeSet.find(typeNameIdxHash(Ty_name, FieldIdx)) != typeEscapeSet.end()){
@@ -72,8 +74,8 @@ void CallGraphPass::findCalleesWithTwoLayerTA(CallInst *CI, FuncSet PreLayerResu
 	string LayerTy_name = "";
 
 	if(LayerTy->isStructTy()){
-
-		if(LayerTy->getStructName().size() != 0){
+		StructType* LayerSTy = dyn_cast<StructType>(LayerTy);
+		if(!LayerSTy->isLiteral()){
 			auto Ty_name = LayerTy->getStructName();
 			LayerTy_name = parseIdentifiedStructName(Ty_name);
 		}
@@ -117,8 +119,8 @@ void CallGraphPass::findCalleesWithTwoLayerTA(CallInst *CI, FuncSet PreLayerResu
 			nextLayerResult = typeFuncsMap[hashIdxHash(H, FieldIdx)];
 			
 			if(Hty->isStructTy()){
-
-				if(Hty->getStructName().size() == 0){
+				StructType* SHty = dyn_cast<StructType>(Hty);
+				if(SHty->isLiteral()){
 					string Ty_name = Ctx->Global_Literal_Struct_Map[typeHash(Hty)];
 					funcSetMerge(nextLayerResult, typeFuncsMap[typeNameIdxHash(Ty_name, FieldIdx)]);
 				}
@@ -163,7 +165,8 @@ void CallGraphPass::findCalleesWithTwoLayerTA(CallInst *CI, FuncSet PreLayerResu
 			nextLayerResult = typeFuncsMap[H];
 			
 			if(Hty->isStructTy()){
-				if(Hty->getStructName().size() == 0){
+				StructType* SHty = dyn_cast<StructType>(Hty);
+				if(SHty->isLiteral()){
 					string Ty_name = Ctx->Global_Literal_Struct_Map[typeHash(Hty)];
 					funcSetMerge(nextLayerResult, typeFuncsMap[typeNameIdxHash(Ty_name, FieldIdx)]);
 				}
@@ -210,8 +213,8 @@ void CallGraphPass::findCalleesWithTwoLayerTA(CallInst *CI, FuncSet PreLayerResu
 			nextLayerResult = typeFuncsMap[H];
 			
 			if(Hty->isStructTy()){
-				if(Hty->getStructName().size() == 0){
-					//OP<<"\nliteral struct: "<<*Hty<<"\n";
+				StructType* SHty = dyn_cast<StructType>(Hty);
+				if(SHty->isLiteral()){
 					string Ty_name = Ctx->Global_Literal_Struct_Map[typeHash(Hty)];
 					funcSetMerge(nextLayerResult, typeFuncsMap[typeNameIdxHash(Ty_name, Hid)]);
 				}
@@ -384,10 +387,9 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 	int LayerNo = 1;
 	int escapeTag = 0;
 	int VTable_idx = -1;
-	string class_name = "";
+	Type* virtial_sty = NULL;
 
 	if(layer_result){
-		//OP<<"here\n";
 		//Once we step in here, CI must have all 2-layer info, one-layer case is imposible
 		for(CompositeType CT : TyList){
 			
@@ -442,23 +444,41 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 		}
 
 	}
-	//Handle CPP virtual function
-	else if(getCPPVirtualFunc(CV, VTable_idx, class_name)){
 
-		if(GlobalVTableMap.count(class_name)){
-			if(GlobalVTableMap[class_name].size() > VTable_idx){
-				Value *vfunc = GlobalVTableMap[class_name][VTable_idx];
-				if (Function *F = dyn_cast<Function>(vfunc)) {
-					Ctx->Global_MLTA_Reualt_Map[CI] = VTable;
-					FS1.clear();
-					FS1.insert(F);
+	//Handle CPP virtual function
+	//TODO: need more testcases to improve this func
+	else if(getCPPVirtualFunc(CV, VTable_idx, virtial_sty)){
+
+		//Note: the class type could cast to other type
+		string class_name = virtial_sty->getStructName().str();
+		size_t typehash = typeHash(virtial_sty);
+
+		list<string> worklist;
+		worklist.push_back(class_name);
+		for (auto H : typeTransitMap[typehash]){
+			Type* Hty = hashTypeMap[H];
+			string Hty_name = Hty->getStructName().str();
+			worklist.push_back(Hty_name);
+		}
+		bool found_tag = false;
+		for (auto type_name : worklist){
+			if(GlobalVTableMap.count(type_name)){
+				if(GlobalVTableMap[type_name].size() > VTable_idx){
+					Value *vfunc = GlobalVTableMap[type_name][VTable_idx];
+					if (Function *F = dyn_cast<Function>(vfunc)) {
+						if(!found_tag){
+							FS1.clear();
+							Ctx->Global_MLTA_Reualt_Map[CI] = VTable;
+							found_tag = true;
+						}
+						FS1.insert(F);
+					}
 				}
 			}
+			else {
+				Ctx->Global_MLTA_Reualt_Map[CI] = OneLayer;
+			}
 		}
-		else {
-			Ctx->Global_MLTA_Reualt_Map[CI] = OneLayer;
-		}
-
 	}
 	else{
 

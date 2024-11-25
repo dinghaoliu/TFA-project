@@ -71,6 +71,7 @@ enum AliasFailureReasons{
 	ignore_analysis = 6,
 	inline_asm = 7,
 	init_in_asm = 8,
+	strip_invariant_group = 9,
 };
 
 typedef struct PairInfo {

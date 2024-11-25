@@ -1,4 +1,5 @@
 #include "CallGraph.h"
+#include <cstddef>
 
 StringRef getClassName(GlobalVariable* GV){
     StringRef className = "";
@@ -101,7 +102,7 @@ void CallGraphPass::CPPVirtualTableHandler(GlobalVariable* GV){
 	}
 }
 
-bool CallGraphPass::getCPPVirtualFunc(Value* V, int &Idx, string &struct_name){
+bool CallGraphPass::getCPPVirtualFunc(Value* V, int &Idx, Type* &Sty){
 
     set<Value *>Visited;
 
@@ -129,7 +130,7 @@ bool CallGraphPass::getCPPVirtualFunc(Value* V, int &Idx, string &struct_name){
             if(indice_num != 1)
                 return false;
             
-            return getCPPVirtualFunc(GEP->getPointerOperand(), Idx, struct_name);
+            return getCPPVirtualFunc(GEP->getPointerOperand(), Idx, Sty);
 		}
 		else
 			return false;
@@ -138,7 +139,7 @@ bool CallGraphPass::getCPPVirtualFunc(Value* V, int &Idx, string &struct_name){
 	// Case 2: LoadInst
 	// Maybe we should also consider the store inst here
 	else if (LoadInst *LI = dyn_cast<LoadInst>(V)) {
-		return getCPPVirtualFunc(LI->getOperand(0), Idx, struct_name);
+		return getCPPVirtualFunc(LI->getOperand(0), Idx, Sty);
 	}
 
     //Find the special bitcast inst
@@ -158,7 +159,7 @@ bool CallGraphPass::getCPPVirtualFunc(Value* V, int &Idx, string &struct_name){
 
                     Type *desttototoTy = desttotoTy->getPointerElementType();
                     if(desttototoTy->isFunctionTy()){
-                        struct_name = tyname;
+                        Sty = srctoTy;
                         if(Idx >=0)
                             return true;
                         else 
@@ -167,7 +168,7 @@ bool CallGraphPass::getCPPVirtualFunc(Value* V, int &Idx, string &struct_name){
                 }
             }
         }
-        return getCPPVirtualFunc(BCI->getOperand(0), Idx, struct_name);
+        return getCPPVirtualFunc(BCI->getOperand(0), Idx, Sty);
     }
 
 
@@ -176,7 +177,7 @@ bool CallGraphPass::getCPPVirtualFunc(Value* V, int &Idx, string &struct_name){
 	// FIXME: may introduce false positives
 	//UnaryInstruction includes castinst, load, etc, resolve this in the last step
 	else if (UnaryInstruction *UI = dyn_cast<UnaryInstruction>(V)) {
-		return getCPPVirtualFunc(UI->getOperand(0), Idx, struct_name);
+		return getCPPVirtualFunc(UI->getOperand(0), Idx, Sty);
 	}
 #endif
 	
