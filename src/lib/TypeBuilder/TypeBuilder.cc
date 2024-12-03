@@ -2,7 +2,7 @@
 
 using namespace llvm;
 
-//#define TEST_ONE_INIT_GLOBAL "ath11k_host_ce_config_ipq8074"
+//#define TEST_ONE_INIT_GLOBAL ""
 //#define DEBUG_PRINT
 
 map<size_t, DIType*> TypeBuilderPass::structDebugInfoMap;
@@ -88,7 +88,12 @@ void TypeBuilderPass::checkGlobalDebugInfo(GlobalVariable *GV, size_t Tyhash){
             break;
         }
 
-        //TODO: support more other` types
+        DISubroutineType *DISRTy = dyn_cast<DISubroutineType>(currentDITy);
+        if(DISRTy){
+            break;
+        }
+
+        //TODO: support more other types
     }
 
     return;
@@ -358,17 +363,14 @@ bool TypeBuilderPass::doInitialization(Module *M) {
 
     for (Module::global_iterator gi = M->global_begin(); 
 			gi != M->global_end(); ++gi) {
+
 		GlobalVariable* GV = &*gi;
 
         //Init global variable map for dataflow analysis
         Ctx->Global_Unique_GV_Map[GV->getGUID()].insert(GV);
 
-		if (!GV->hasInitializer())
-			continue;
-
-		Constant *Ini = GV->getInitializer();
-		if (!isa<ConstantAggregate>(Ini))
-			continue;
+		if(!checkValidGV(GV))
+            continue;
 		
 #ifdef TEST_ONE_INIT_GLOBAL
 		if(GV->getName() != TEST_ONE_INIT_GLOBAL)
@@ -462,12 +464,8 @@ bool TypeBuilderPass::doModulePass(Module *M) {
 			gi != M->global_end(); ++gi) {
 		GlobalVariable* GV = &*gi;
     
-        if (!GV->hasInitializer())
-			continue;
-        
-        Constant *Ini = GV->getInitializer();
-		if (!isa<ConstantAggregate>(Ini))
-			continue;
+        if(!checkValidGV(GV))
+            continue;
         
 #ifdef TEST_ONE_INIT_GLOBAL
 		if(GV->getName() != TEST_ONE_INIT_GLOBAL)
@@ -479,7 +477,6 @@ bool TypeBuilderPass::doModulePass(Module *M) {
             continue;
 
         checkLayeredDebugInfo(GV);
-
     }
 
     identifiedStructType.clear();

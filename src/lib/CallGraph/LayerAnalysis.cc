@@ -350,6 +350,7 @@ bool CallGraphPass::getGEPLayerTypes(GEPOperator *GEP, list<CompositeType> &TyLi
 	// This is common in O2 optimized code
 	// A case:  %71 = getelementptr inbounds i8, i8* %7, i64 2000, !dbg !5286
 	else if (Ty->isIntegerTy() && GEP->hasAllConstantIndices()){
+		return false;
 		
 		unsigned indice_num = GEP->getNumIndices();
 		if(indice_num != 1)

@@ -26,6 +26,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
+#define ENABLE_DATA_FLOW_ANALYSIS
+
 using namespace llvm;
 
 // Command line parameters.
@@ -256,7 +258,14 @@ int main(int argc, char **argv) {
 	long long pre_num_round, cur_num_round;
 	loop_num = 0;
 
-	while(true){
+	bool enable_data_flow_analysis;
+#ifdef ENABLE_DATA_FLOW_ANALYSIS
+        enable_data_flow_analysis = true;
+#else
+		enable_data_flow_analysis = false;
+#endif
+
+	while(enable_data_flow_analysis){
 		pre_num = GlobalCtx.icallTargets;
 		pre_num_round = GlobalCtx.icallTargets;
 

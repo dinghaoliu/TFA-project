@@ -52,8 +52,6 @@ unordered_map<unsigned, set<size_t>> CallGraphPass::subMemberNumTypeMap;
 set<size_t> CallGraphPass::escapedTypesInTypeAnalysisSet;
 map<size_t, set<StoreInst*>> CallGraphPass::escapedStoreMap;
 
-CastInst *current_cast;
-
 map<Value*, map<Function*, set<size_t>>> CallGraphPass::Func_Init_Map;
 map<Value*, Type*> CallGraphPass::TypeHandlerMap;
 map<Function*, set<CallInst*>> CallGraphPass::LLVMDebugCallMap;
@@ -79,7 +77,7 @@ void CallGraphPass::typeConfineInStore_new(StoreInst *SI) {
 		return;
 	}
 	else if (TyList.size() > 0) {
-		
+
 		for (CompositeType CT : TyList) {
 			propagateType(PO, CT.first, CT.second, SI);
 		}
@@ -99,7 +97,7 @@ void CallGraphPass::typeConfineInStore_new(StoreInst *SI) {
 	set<Value *>Visited;
 	Type *VO_BTy = getBaseType(VO, Visited);
 	if (VO_BTy) {
-		
+
 		//A special case: store a func pointer vec to a structure field
 		if(VO_BTy->isVectorTy() && VO_BTy->getScalarType()->isPointerTy()){
 			VectorType* FVT = dyn_cast<VectorType>(VO_BTy);
@@ -265,6 +263,67 @@ void CallGraphPass::typeConfineInStore_new(StoreInst *SI) {
 	return;
 }
 
+/*Sometimes there is no direct cast from one type to another, like the example in tensorflow:
+from type: i32 (%struct.TfLiteContext*, %struct.TfLiteNode*, i32, %struct.TfLiteTensor**)*
+to tyoe: i32 (%struct.TfLiteContext.5225*, %struct.TfLiteNode.5220*, i32, %struct.TfLiteTensor.5219**)*
+in this case, we may need to regard a cast happens between %struct.TfLiteContext and %struct.TfLiteContext.5225
+*/
+void CallGraphPass::handleIndirectCast(Type *FromTy, Type *ToTy){
+	
+	//Handle the cast inside function pointers
+	if(ToTy->isPointerTy() && FromTy->isPointerTy()){
+		Type *ToeleType = ToTy->getPointerElementType();
+		Type *FromeleType = FromTy->getPointerElementType();
+		
+		if(ToeleType->isFunctionTy() && FromeleType->isFunctionTy()){
+			//OP<<"\nToeleType: "<<*ToeleType<<"\n";
+			//OP<<"FromeleType: "<<*FromeleType<<"\n";
+			FunctionType* FromFuncTy = dyn_cast<FunctionType>(FromeleType);
+			FunctionType* ToFuncTy = dyn_cast<FunctionType>(ToeleType);
+
+			//First handle return type
+			Type* FromReturnTy = FromFuncTy->getReturnType();
+			Type* ToReturnTy = ToFuncTy->getReturnType();
+			if(FromReturnTy != ToReturnTy){
+				if(FromReturnTy->isStructTy() && ToReturnTy->isStructTy()){
+					transitType(ToReturnTy, FromReturnTy);
+				}
+			}
+
+			//Next handle arg type
+			if(FromFuncTy->getNumParams() != ToFuncTy->getNumParams()){
+				//OP<<"invalid arg number!\n";
+				return;
+			}
+
+			for(int i = 0; i < FromFuncTy->getNumParams(); i++){
+				Type* FromArgTy = FromFuncTy->getParamType(i);
+				Type* ToArgTy = ToFuncTy->getParamType(i);
+				//OP<<"FromArgTy: "<<*FromArgTy<<"\n";
+				//OP<<"ToArgTy: "<<*ToArgTy<<"\n";
+				if(ToArgTy->isPointerTy() && FromArgTy->isPointerTy()){
+					//OP<<"both ptr\n";
+					ToArgTy = ToArgTy->getPointerElementType();
+					FromArgTy = FromArgTy->getPointerElementType();
+				}
+
+				if(FromArgTy != ToArgTy){
+					if(FromArgTy->isStructTy() && ToArgTy->isStructTy()){
+						transitType(ToArgTy, FromArgTy);
+						/*string to_ty_str = getTypeStr(ToArgTy);
+						string from_ty_str = getTypeStr(FromArgTy);
+						if(checkStringContainSubString(to_ty_str, "TfLiteContext.745")){
+							//if(FromTy->isStructTy())
+							OP<<"\nfrom_ty_str: "<<from_ty_str<<"\n";
+							OP<<"to_ty_str: "<<to_ty_str<<"\n";
+						}*/
+					}
+				}
+			}
+		}
+	}
+}
+
 bool CallGraphPass::typeConfineInCast(CastInst *CastI) {
 
 	// If a function address ever cast to another type and is stored
@@ -388,7 +447,7 @@ void CallGraphPass::escapeType(StoreInst* SI, Type *Ty, int Idx) {
 
 void CallGraphPass::transitType(Type *ToTy, Type *FromTy,
 		int ToIdx, int FromIdx) {
-
+	
 	if (ToIdx != -1 && FromIdx != -1){
 		//This part is under testing
 		typeTransitMap[typeIdxHash(ToTy, ToIdx)].insert(typeIdxHash(FromTy, FromIdx));
@@ -428,6 +487,16 @@ bool CallGraphPass::doInitialization(Module *M) {
 		CPPVirtualTableHandler(GV);
 
 		if (!GV->hasInitializer())
+			continue;
+
+		if(GV->getName().contains(".str."))
+        	continue;
+
+		//Filter C++ VTables
+		if(GV->getName().contains("_ZTV"))
+			continue;
+
+		if(GV->getName().contains("_ZN"))
 			continue;
 		
 #ifdef TEST_ONE_INIT_GLOBAL
@@ -471,8 +540,9 @@ bool CallGraphPass::doInitialization(Module *M) {
 
 			//Only this cast is not enough, some cast occurs directly in function arguments!!
 			else if (CastInst *CastI = dyn_cast<CastInst>(I)) {
-				current_cast = CastI;
 				typeConfineInCast(CastI);
+				Type *ToTy = CastI->getDestTy(), *FromTy = CastI->getSrcTy();
+				handleIndirectCast(FromTy, ToTy);
 #ifdef ENABLE_CAST_ESCAPE
             handleCastEscapeType(CastI->getDestTy(), CastI->getSrcTy());
 #endif
@@ -517,6 +587,12 @@ bool CallGraphPass::doInitialization(Module *M) {
 						funcSetMerge(escapeFuncSet, FSet);
 					}
 				}
+				/*if(checkStringContainSubString(from_ty_str, "TfLiteContext")){
+					//if(FromTy->isStructTy())
+					OP<<"\nfrom_ty_str: "<<from_ty_str<<"\n";
+					OP<<"to_ty_str: "<<to_ty_str<<"\n";
+				}*/
+				handleIndirectCast(FromTy, ToTy);
 			}
 
 #ifdef ENABLE_CAST_ESCAPE

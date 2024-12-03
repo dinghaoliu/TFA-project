@@ -483,12 +483,11 @@ void interCaseHandler(Value* aliased_v, list<Value *>&LV,
     Argument *arg = dyn_cast<Argument>(aliased_v);
     if(arg){
         Function* caller = arg->getParent();
-        if(!caller)
+        if(!caller){
             return;
+        }
         
         auto caller_arg_size = caller->arg_size();
-        
-        //OP<<"caller: "<<caller->getName()<<"\n";
         if(!Ctx->Callers.count(caller))
             return;
 

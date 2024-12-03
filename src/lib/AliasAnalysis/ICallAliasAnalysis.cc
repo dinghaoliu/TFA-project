@@ -7,7 +7,7 @@
 
 using namespace llvm;
 
-//#define TEST_ONE_FUNC "kdb_getchar"
+//#define TEST_ONE_FUNC ""
 //#define PRINT_ALIAS_RESULT
 #define ENAMBE_OMP
 

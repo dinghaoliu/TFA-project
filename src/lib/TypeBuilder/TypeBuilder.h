@@ -60,6 +60,7 @@ class TypeBuilderPass : public IterativeModulePass {
 		void updateTypeQueue(Type* Ty, deque<Type*> &Ty_queue);
 		bool updateUserQueue(User* U, deque<User*> &U_queue);
 		void updateQueues(Type* Ty1, Type* Ty2, deque<Type*> &Ty_queue);
+		bool checkValidGV(GlobalVariable* GV);
 
 		//Check if function arg cast to another type (for function pointer args)
 		bool checkArgCast(Function *F);

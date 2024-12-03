@@ -198,3 +198,29 @@ void TypeBuilderPass::combinate(int start, map<unsigned, set<Type*>> CastMap,
     }
 
 }
+
+bool TypeBuilderPass::checkValidGV(GlobalVariable* GV){
+
+    if(!GV)
+        return false;
+
+    if (!GV->hasInitializer())
+		return false;
+
+	Constant *Ini = GV->getInitializer();
+	if (!isa<ConstantAggregate>(Ini))
+		return false;
+
+    //Filter const strings
+    if(GV->getName().contains(".str."))
+        return false;
+
+    //Filter C++ VTables
+    if(GV->getName().contains("_ZTV"))
+        return false;
+
+    if(GV->getName().contains("_ZN"))
+        return false;
+
+    return true;
+}

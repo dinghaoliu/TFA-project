@@ -141,6 +141,7 @@ class CallGraphPass : public IterativeModulePass {
 		bool typeConfineInCast(Type *FromTy, Type *ToTy);
 		void escapeType(StoreInst* SI, Type *Ty, int Idx = -1);
 		void handleCastEscapeType(Type *ToTy, Type *FromTy);
+		void handleIndirectCast(Type *FromTy, Type *ToTy);
 		void transitType(Type *ToTy, Type *FromTy,
 						int ToIdx = -1, int FromIdx = -1);
 		
@@ -161,7 +162,7 @@ class CallGraphPass : public IterativeModulePass {
 
 		//Support C++ features
 		bool getCPPVirtualFunc(Value* V, int &Idx, Type* &Sty);
-		void resolveVariableParameters(CallInst *CI, FuncSet &FS);
+		void resolveVariableParameters(CallInst *CI, FuncSet &FS,  bool enable_type_cast_in_args);
   
 		
 		void funcSetIntersection(FuncSet &FS1, FuncSet &FS2,

@@ -3,7 +3,7 @@
 
 //#define PRINT_LAYER_SET
 //#define ENHANCED_ONE_LAYER_COLLECTION
-//#define ENABLE_FUNCTYPE_CAST
+#define ENABLE_FUNCTYPE_CAST
 //#define ENABLE_FUNCTYPE_ESCAPE
 //#define ENABLE_CONSERVATIVE_ESCAPE_HANDLER
 
@@ -109,8 +109,9 @@ void CallGraphPass::findCalleesWithTwoLayerTA(CallInst *CI, FuncSet PreLayerResu
 		for (auto H : typeTransitMap[CT]) {
 
 			Type* Hty = hashTypeMap[H];
+			//OP<<"Hty: "<<*Hty<<"\n";
 
-			//Make sure the transitted types haven't escape
+			//Make sure the transited types haven't escape
 			if(isEscape(Hty, FieldIdx, CI)){
 				escape = 1;
 				return;
@@ -238,15 +239,18 @@ void CallGraphPass::findCalleesWithTwoLayerTA(CallInst *CI, FuncSet PreLayerResu
 	for(auto it = PreLayerResult.begin(); it!=PreLayerResult.end();it++){
 		Function* f= *it;
 		OP<<"f: "<<f->getName()<<"\n";
+		OP<<"f type: "<<*f->getType()<<"\n";
 	}
 
 	OP<<"merge_set: \n";
 	for(auto it = merge_set.begin(); it!=merge_set.end();it++){
 		Function* f= *it;
 		OP<<"f: "<<f->getName()<<"\n";
+		OP<<"f type: "<<*f->getType()<<"\n";
 	}
 #endif
 
+	//TODO: is this intersection really necessary?
 	funcSetIntersection(PreLayerResult, merge_set, FST);
 
 	//Add the lost type func
@@ -267,7 +271,11 @@ void CallGraphPass::getOneLayerResult(CallInst *CI, FuncSet &FS){
 
 	// Handle function types with variable parameters
 	if(FS.empty()){
-		resolveVariableParameters(CI, FS);
+#ifdef ENABLE_FUNCTYPE_CAST
+		resolveVariableParameters(CI, FS, true);
+#else
+		resolveVariableParameters(CI, FS, false);
+#endif
 	}
 
 #ifdef ENABLE_FUNCTYPE_CAST
@@ -389,12 +397,16 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 	int VTable_idx = -1;
 	Type* virtial_sty = NULL;
 
+	//OP<<"CI: "<<*CI<<"\n";
+
 	if(layer_result){
 		//Once we step in here, CI must have all 2-layer info, one-layer case is imposible
 		for(CompositeType CT : TyList){
 			
 			LayerTy = CT.first;
 			FieldIdx = CT.second;
+			//OP<<"LayerTy: "<<*LayerTy<<"\n";
+			//OP<<"FieldIdx: "<<FieldIdx<<"\n";
 
 			if(LayerTy->getStructName().contains(".anon")){
 				Ctx->Global_pre_anon_icall_num++;
@@ -452,14 +464,16 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 		//Note: the class type could cast to other type
 		string class_name = virtial_sty->getStructName().str();
 		size_t typehash = typeHash(virtial_sty);
-
 		list<string> worklist;
 		worklist.push_back(class_name);
 		for (auto H : typeTransitMap[typehash]){
 			Type* Hty = hashTypeMap[H];
-			string Hty_name = Hty->getStructName().str();
-			worklist.push_back(Hty_name);
+			if(Hty->isStructTy()){
+				string Hty_name = Hty->getStructName().str();
+				worklist.push_back(Hty_name);
+			}
 		}
+
 		bool found_tag = false;
 		for (auto type_name : worklist){
 			if(GlobalVTableMap.count(type_name)){
