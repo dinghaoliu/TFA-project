@@ -44,6 +44,9 @@ unsigned getInstLineNo(Instruction *I);
 unsigned getInstLineNo(Function *F);
 
 //Used for debug
+std::string getCPPFuncName(Function *F);
+
+//Used for debug
 void printInstMessage(Instruction *inst);
 
 //Used for debug
@@ -51,6 +54,9 @@ void printBlockMessage(BasicBlock *bb);
 
 //Used for debug
 void printBlockLineNoRange(BasicBlock *bb);
+
+//Used for debug
+void printFunctionMessage(Function *F);
 
 //Used for debug
 void printFunctionMessage(Function *F);

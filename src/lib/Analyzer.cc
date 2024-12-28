@@ -17,6 +17,7 @@
 #include "AliasAnalysis/AliasAnalysis.h"
 #include "TypeBuilder/TypeBuilder.h"
 #include "CallGraph/CallGraph.h"
+#include "CHABuilder/CHABuilder.h"
 #include "utils/Analyzer.h"
 #include "utils/Config.h"
 #include "utils/DBTools.h"
@@ -26,7 +27,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#define ENABLE_DATA_FLOW_ANALYSIS
+//#define ENABLE_DATA_FLOW_ANALYSIS
 
 using namespace llvm;
 
@@ -246,6 +247,9 @@ int main(int argc, char **argv) {
 	gettimeofday(&end_time, 0);
 	GlobalCtx.Typebuilder_time = (end_time.tv_sec - start_time.tv_sec) + (double)(end_time.tv_usec - start_time.tv_usec)/1000000.0;
 
+	//C++ virtual call analysis
+	CHABuilderPass CHAPass(&GlobalCtx);
+	CHAPass.run(GlobalCtx.Modules);
 
 	// Build global call graph.
 	gettimeofday(&start_time, 0);

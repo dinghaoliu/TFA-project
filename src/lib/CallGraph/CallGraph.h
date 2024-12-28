@@ -21,6 +21,7 @@
 #include "llvm/IR/CFG.h" 
 #include "llvm/Transforms/Utils/BasicBlockUtils.h" 
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Demangle/Demangle.h"
 
 #include "../utils/Analyzer.h"
 #include "../utils/Tools.h"
@@ -46,15 +47,11 @@ class CallGraphPass : public IterativeModulePass {
 		static unordered_map<size_t, set<size_t>>typeConfineMap;
 		static unordered_map<size_t, set<size_t>>typeTransitMap;
 		static map<string, set<string>>typeNameTransitMap;
-		//static unordered_map<size_t, set<size_t>>reverse_typeTransitMap;
 		static map<Value*, Type*> TypeHandlerMap;
-
-		//Record VTable info
-		static map<string, vector<Value*>> GlobalVTableMap;
 
 		//Key Toty, element: fromTy
 		static unordered_map<size_t, set<size_t>>funcTypeCastMap;
-		
+
 
 		static set<size_t>typeEscapeSet;
 		static set<string>castEscapeSet;
@@ -115,13 +112,6 @@ class CallGraphPass : public IterativeModulePass {
 		static set<size_t> escapedTypesInTypeAnalysisSet; //A subset of escaped type-id set
 		static map<size_t, set<StoreInst*>> escapedStoreMap;
 
-		//Record composite type info (a composite type set)
-		//This map merge the info of the old typeTransitMap
-		//static unordered_map<size_t, map<unsigned, FuncSet>> newtypeFuncsMap;
-		//static unordered_map<size_t, set<size_t>>newtypeTransitMap;
-		//static DenseMap<unsigned, set<size_t>> newtypeEscapeMap;
-		
-
 		// Use type-based analysis to find targets of indirect calls
 		// Multi-layer type analysis supported
 		void findCalleesByType(llvm::CallInst*, FuncSet&);
@@ -134,7 +124,6 @@ class CallGraphPass : public IterativeModulePass {
 
 		//bool isCompositeType(Type *Ty);
 		bool typeConfineInInitializer(GlobalVariable* GV);
-		void CPPVirtualTableHandler(GlobalVariable* GV);
 		bool typeConfineInStore(StoreInst *SI);
 		void typeConfineInStore_new(StoreInst *SI);
 		bool typeConfineInCast(CastInst *CastI);
@@ -163,8 +152,7 @@ class CallGraphPass : public IterativeModulePass {
 		//Support C++ features
 		bool getCPPVirtualFunc(Value* V, int &Idx, Type* &Sty);
 		void resolveVariableParameters(CallInst *CI, FuncSet &FS,  bool enable_type_cast_in_args);
-  
-		
+		void getTargetsInDerivedClass(string class_name, int idx, FuncSet &FS);
 		void funcSetIntersection(FuncSet &FS1, FuncSet &FS2,
 								FuncSet &FS); 
 		void funcSetMerge(FuncSet &FS1, FuncSet &FS2);

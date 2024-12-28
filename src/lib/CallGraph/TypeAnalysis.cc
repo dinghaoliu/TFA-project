@@ -3,9 +3,11 @@
 
 //#define PRINT_LAYER_SET
 //#define ENHANCED_ONE_LAYER_COLLECTION
-#define ENABLE_FUNCTYPE_CAST
+//#define ENABLE_FUNCTYPE_CAST
 //#define ENABLE_FUNCTYPE_ESCAPE
 //#define ENABLE_CONSERVATIVE_ESCAPE_HANDLER
+//#define DEBUG_SINGLE_INDIRECT_CALL
+#define ENABLE_VIRTUAL_CALL_ANALYSIS
 
 CallInst * current_CI;
 
@@ -109,7 +111,6 @@ void CallGraphPass::findCalleesWithTwoLayerTA(CallInst *CI, FuncSet PreLayerResu
 		for (auto H : typeTransitMap[CT]) {
 
 			Type* Hty = hashTypeMap[H];
-			//OP<<"Hty: "<<*Hty<<"\n";
 
 			//Make sure the transited types haven't escape
 			if(isEscape(Hty, FieldIdx, CI)){
@@ -364,6 +365,20 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 
 	// Initial set: first-layer results (only function type match)
 	FuncSet FS1;
+	int VTable_idx = -1;
+	Type* virtial_sty = NULL;
+	Type *LayerTy = NULL;
+	int FieldIdx = -1;
+	Value *CV = CI->getCalledOperand();
+
+#ifdef DEBUG_SINGLE_INDIRECT_CALL
+	OP<<"Call Inst: "<<*CI<<"\n";
+	OP<<"Type: "<<*CI->getFunctionType()<<"\n";
+	OP<<"File: "<<getInstFilename(CI)<<"\n";
+	OP<<"Line: "<<getInstLineNo(CI)<<"\n";
+	getchar();
+#endif
+
 	getOneLayerResult(CI, FS1);
 
 #ifdef ENABLE_FUNCTYPE_ESCAPE
@@ -375,16 +390,36 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 	Ctx->icallTargets_OneLayer += FS1.size();
 
 	if (FS1.size() == 0) {
+
         Ctx->Global_MLTA_Reualt_Map[CI] = MissingBaseType;
+		if(getCPPVirtualFunc(CV, VTable_idx, virtial_sty)){
+			string class_name = virtial_sty->getStructName().str();
+			FuncSet VTable_Set;
+#ifdef DEBUG_SINGLE_INDIRECT_CALL
+		OP<<"in vf checking 1\n";
+		OP<<"class_name: "<<class_name<<"\n";
+		OP<<"Index: "<<VTable_idx<<"\n";
+		getchar();
+#endif
+
+#ifdef ENABLE_VIRTUAL_CALL_ANALYSIS
+			getTargetsInDerivedClass(class_name, VTable_idx, VTable_Set);
+			if(VTable_Set.empty()){
+				Ctx->Global_MLTA_Reualt_Map[CI] = MissingBaseType;
+			}
+			else{
+				Ctx->Global_MLTA_Reualt_Map[CI] = VTable;
+				FS = VTable_Set;
+			}
+#else
+			Ctx->Global_MLTA_Reualt_Map[CI] = MissingBaseType;
+#endif
+		}
+
 		return false;
 	}
 
-
 	FuncSet FS2, FST;
-
-	Type *LayerTy = NULL;
-	int FieldIdx = -1;
-	Value *CV = CI->getCalledOperand();
 
 	set<Value*> VisitedSet;
 	list<CompositeType> TyList;
@@ -394,19 +429,18 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 
 	int LayerNo = 1;
 	int escapeTag = 0;
-	int VTable_idx = -1;
-	Type* virtial_sty = NULL;
-
-	//OP<<"CI: "<<*CI<<"\n";
-
+	
 	if(layer_result){
 		//Once we step in here, CI must have all 2-layer info, one-layer case is imposible
 		for(CompositeType CT : TyList){
 			
 			LayerTy = CT.first;
 			FieldIdx = CT.second;
-			//OP<<"LayerTy: "<<*LayerTy<<"\n";
-			//OP<<"FieldIdx: "<<FieldIdx<<"\n";
+#ifdef DEBUG_SINGLE_INDIRECT_CALL
+			OP<<"LayerTy: "<<*LayerTy<<"\n";
+			OP<<"FieldIdx: "<<FieldIdx<<"\n";
+			getchar();
+#endif
 
 			if(LayerTy->getStructName().contains(".anon")){
 				Ctx->Global_pre_anon_icall_num++;
@@ -457,45 +491,37 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 
 	}
 
+
+#ifdef ENABLE_VIRTUAL_CALL_ANALYSIS
+
 	//Handle CPP virtual function
 	//TODO: need more testcases to improve this func
+	//TODO: need inter-procedural and comtext-sensitive analysis
+	//to identify C++ class
 	else if(getCPPVirtualFunc(CV, VTable_idx, virtial_sty)){
 
 		//Note: the class type could cast to other type
 		string class_name = virtial_sty->getStructName().str();
-		size_t typehash = typeHash(virtial_sty);
-		list<string> worklist;
-		worklist.push_back(class_name);
-		for (auto H : typeTransitMap[typehash]){
-			Type* Hty = hashTypeMap[H];
-			if(Hty->isStructTy()){
-				string Hty_name = Hty->getStructName().str();
-				worklist.push_back(Hty_name);
-			}
+#ifdef DEBUG_SINGLE_INDIRECT_CALL
+		OP<<"in vf checking 2\n";
+		OP<<"class_name: "<<class_name<<"\n";
+		OP<<"Index: "<<VTable_idx<<"\n";
+		getchar();
+#endif
+
+		FuncSet VTable_Set;
+		getTargetsInDerivedClass(class_name, VTable_idx, VTable_Set);
+		if(VTable_Set.empty()){
+			Ctx->Global_MLTA_Reualt_Map[CI] = OneLayer;
+		}
+		else{
+			Ctx->Global_MLTA_Reualt_Map[CI] = VTable;
+			FS1 = VTable_Set;
 		}
 
-		bool found_tag = false;
-		for (auto type_name : worklist){
-			if(GlobalVTableMap.count(type_name)){
-				if(GlobalVTableMap[type_name].size() > VTable_idx){
-					Value *vfunc = GlobalVTableMap[type_name][VTable_idx];
-					if (Function *F = dyn_cast<Function>(vfunc)) {
-						if(!found_tag){
-							FS1.clear();
-							Ctx->Global_MLTA_Reualt_Map[CI] = VTable;
-							found_tag = true;
-						}
-						FS1.insert(F);
-					}
-				}
-			}
-			else {
-				Ctx->Global_MLTA_Reualt_Map[CI] = OneLayer;
-			}
-		}
 	}
+#endif
 	else{
-
 		CV = CI->getCalledOperand();
 		set<CompositeType> CTSet;
 		CTSet.clear();
@@ -539,6 +565,9 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 	}
 
 	FS = FS1;
+#ifdef DEBUG_SINGLE_INDIRECT_CALL
+	OP<<"FS size: "<<FS.size()<<"\n";
+#endif
 
 	if(LayerNo > 1){
 		Ctx->valied_icallNumber++;

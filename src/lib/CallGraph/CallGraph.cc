@@ -29,7 +29,7 @@ map<string, set<string>> CallGraphPass::typeNameTransitMap;
 unordered_map<size_t, set<size_t>> CallGraphPass::funcTypeCastMap;
 set<size_t> CallGraphPass::funcTypeCastToVoidSet;
 set<size_t> CallGraphPass::funcTypeCastFromVoidSet;
-FuncSet CallGraphPass::escapeFuncSet;
+FuncSet CallGraphPass::escapeFuncSet;  
 
 map<string, set<string>> CallGraphPass::typeStrCastMap;
 map<int, map<size_t, FunctionType*>> CallGraphPass::funcTypeMap;
@@ -55,8 +55,6 @@ map<size_t, set<StoreInst*>> CallGraphPass::escapedStoreMap;
 map<Value*, map<Function*, set<size_t>>> CallGraphPass::Func_Init_Map;
 map<Value*, Type*> CallGraphPass::TypeHandlerMap;
 map<Function*, set<CallInst*>> CallGraphPass::LLVMDebugCallMap;
-
-map<string, vector<Value*>> CallGraphPass::GlobalVTableMap;
 
 void CallGraphPass::typeConfineInStore_new(StoreInst *SI) {
 
@@ -483,9 +481,6 @@ bool CallGraphPass::doInitialization(Module *M) {
 			gi != M->global_end(); ++gi) {
 		GlobalVariable* GV = &*gi;
 
-		//Handle C++ virtual table
-		CPPVirtualTableHandler(GV);
-
 		if (!GV->hasInitializer())
 			continue;
 
@@ -493,11 +488,14 @@ bool CallGraphPass::doInitialization(Module *M) {
         	continue;
 
 		//Filter C++ VTables
-		if(GV->getName().contains("_ZTV"))
+		if(GV->getName().startswith("_ZTV"))
 			continue;
 
-		if(GV->getName().contains("_ZN"))
+		if(GV->getName().startswith("_ZN"))
 			continue;
+
+		 if(GV->getName().startswith("_ZTI"))
+		 	continue;
 		
 #ifdef TEST_ONE_INIT_GLOBAL
 		if(GV->getName() != TEST_ONE_INIT_GLOBAL)
@@ -587,11 +585,7 @@ bool CallGraphPass::doInitialization(Module *M) {
 						funcSetMerge(escapeFuncSet, FSet);
 					}
 				}
-				/*if(checkStringContainSubString(from_ty_str, "TfLiteContext")){
-					//if(FromTy->isStructTy())
-					OP<<"\nfrom_ty_str: "<<from_ty_str<<"\n";
-					OP<<"to_ty_str: "<<to_ty_str<<"\n";
-				}*/
+
 				handleIndirectCast(FromTy, ToTy);
 			}
 
@@ -658,6 +652,7 @@ bool CallGraphPass::doModulePass(Module *M) {
 			f != fe; ++f) {
 
 		Function *F = &*f;
+		//OP<<"F: "<<F->getName()<<"\n";
 
 #ifdef TEST_ONE_FUNC
 		if(F->getName()!=TEST_ONE_FUNC){

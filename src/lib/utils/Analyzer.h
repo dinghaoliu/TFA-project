@@ -199,6 +199,12 @@ struct GlobalContext {
 	map<Function*, set<size_t>> Global_Arg_Cast_Func_Map;
 	map<Type*, Module*> Global_Ty_Module_Map;
 
+	/******Virtual func handling methods******/
+	//  class name, method name, vf func     
+	map<string, map<string, set<Value*>>> Global_VTable_Map;
+	map<string, map<int, set<string>>> Global_Class_Method_Index_Map;
+	map<string, set<string>> GlobalClassHierarchyMap; // Key: parent lcass name; value: derived class name
+
 	/******icall methods******/
 	unsigned long long icallTargets = 0;
 	unsigned long long icallTargets_OneLayer = 0;

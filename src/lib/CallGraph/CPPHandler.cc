@@ -1,106 +1,6 @@
 #include "CallGraph.h"
 #include <cstddef>
-
-StringRef getClassName(GlobalVariable* GV){
-    StringRef className = "";
-	for(User* u : GV->users()){
-		if(GEPOperator *GEPO = dyn_cast<GEPOperator>(u)){
-			for(User* u2 : GEPO->users()){
-				if(BitCastOperator *CastO = dyn_cast<BitCastOperator>(u2)){
-					for(User* u3 : u2->users()){
-						if(StoreInst *STI = dyn_cast<StoreInst>(u3)){
-							
-							Value* vop = STI->getValueOperand();
-                    		Value* pop = STI->getPointerOperand();
-							if(vop != u2)
-								continue;
-							
-							BitCastOperator *CastO = dyn_cast<BitCastOperator>(pop);
-
-							if(CastO){
-								Value *ToV = CastO, *FromV = CastO->getOperand(0);
-								Type *ToTy = ToV->getType(), *FromTy = FromV->getType();
-
-								if(FromTy->isPointerTy()){
-									Type *ToeleType = FromTy->getPointerElementType();
-									if(ToeleType->isStructTy()){
-										className = ToeleType->getStructName();
-									}
-								}
-							}
-
-							GEPOperator *GEPO_outer = dyn_cast<GEPOperator>(pop);
-							if(GEPO_outer){
-								auto sourceTy = GEPO_outer->getSourceElementType();
-								if(sourceTy->isStructTy()){
-									className = sourceTy->getStructName();
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-    return className;
-}
-
-//Handle C++ virtual tables
-//In most cases, VTable is a struct with one array element
-//Currently we only support normal class
-void CallGraphPass::CPPVirtualTableHandler(GlobalVariable* GV){
-	
-	if(!GV->getName().contains("_ZTV"))
-		return;
-
-	//TODO: handle this
-	if (!GV->hasInitializer()){
-		return;
-	}
-
-	Constant *Ini = GV->getInitializer();
-	if (!isa<ConstantAggregate>(Ini)){
-		return;
-	}
-	
-	if(!Ini->getType()->isStructTy()){
-		return;
-	}
-
-	unsigned num_operand = Ini->getNumOperands();
-	if(num_operand != 1){
-		return;
-	}
-	
-	auto arr = Ini->getOperand(0);
-	ConstantArray *CA = dyn_cast<ConstantArray>(arr);
-	if(!CA){
-		return;
-	}
-
-	//Get the class name
-	string className = getClassName(GV).str();
-	if(className == "")
-		return;
-
-	int i = 0;
-	for (auto oi = CA->op_begin(), oe = CA->op_end(); oi != oe; ++oi) {
-		Value *ele = *oi;
-		if(i <= 1){
-			i++;
-			continue;
-		}
-
-		BitCastOperator *CastO = dyn_cast<BitCastOperator>(ele);
-		if(!CastO)
-			continue;
-		
-		Value *FromV = CastO->getOperand(0);
-		GlobalVTableMap[className].push_back(FromV);
-
-		i++;
-	}
-}
+#include <utility>
 
 bool CallGraphPass::getCPPVirtualFunc(Value* V, int &Idx, Type* &Sty){
 
@@ -239,7 +139,6 @@ void CallGraphPass::resolveVariableParameters(CallInst *CI, FuncSet &FS,
 				continue;
 
 			FunctionType* f_funcTy = dyn_cast<FunctionType>(fty);
-			//OP<<"fty: "<<*f_funcTy<<"\n";
 
 			//Check whether fty could become funcTy through casting
 			auto f_funcTy_arg_num = f_funcTy->getNumParams();
@@ -290,7 +189,7 @@ void CallGraphPass::resolveVariableParameters(CallInst *CI, FuncSet &FS,
 					}
 
 					if(f_check_Sty->isLiteral()){
-						CI_check_Sty_name = Ctx->Global_Literal_Struct_Map[typeHash(f_check_Sty)];
+						f_check_Sty_name = Ctx->Global_Literal_Struct_Map[typeHash(f_check_Sty)];
 					}
 					else{
 						StringRef Ty_name = f_check_Sty->getStructName();
@@ -300,29 +199,48 @@ void CallGraphPass::resolveVariableParameters(CallInst *CI, FuncSet &FS,
 					if(CI_check_Sty_name == f_check_Sty_name)
 						continue;
 
+					list<size_t> LT;
+					set<size_t> PT;
+					LT.push_back(typeHash(CI_check_Sty));
 					bool found_cast = false;
-					for (auto H : typeTransitMap[typeHash(CI_check_Sty)]){
-						Type* Hty = hashTypeMap[H];
 
-						if(Hty == f_check_ty){
-							found_cast = true;
-							break;
-						}
+					while (!LT.empty()) {
+						size_t CT = LT.front();
+						LT.pop_front();
 
-						if(Hty->isStructTy()){
-							StructType* SHty = dyn_cast<StructType>(Hty);
-							string SHty_name = "";
-							if(SHty->isLiteral()){
-								SHty_name = Ctx->Global_Literal_Struct_Map[typeHash(Hty)];
-							}
-							else{
-								StringRef Ty_name = Hty->getStructName();
-								SHty_name = parseIdentifiedStructName(Ty_name);
-							}
-							if(SHty_name == f_check_Sty_name){
+						if (PT.find(CT) != PT.end())
+							continue;
+						PT.insert(CT);
+
+						for (auto H : typeTransitMap[CT]){
+							Type* Hty = hashTypeMap[H];
+
+							if(Hty == f_check_ty){
 								found_cast = true;
 								break;
 							}
+
+							if(Hty->isStructTy()){
+								StructType* SHty = dyn_cast<StructType>(Hty);
+								string SHty_name = "";
+								if(SHty->isLiteral()){
+									SHty_name = Ctx->Global_Literal_Struct_Map[typeHash(Hty)];
+								}
+								else{
+									StringRef Ty_name = Hty->getStructName();
+									SHty_name = parseIdentifiedStructName(Ty_name);
+								}
+								
+								if(SHty_name == f_check_Sty_name){
+									found_cast = true;
+									break;
+								}
+							}
+
+							LT.push_back(H);
+						}
+						if(found_cast){
+							break;
 						}
 					}
 
@@ -340,15 +258,65 @@ void CallGraphPass::resolveVariableParameters(CallInst *CI, FuncSet &FS,
 					Ctx->sigFuncsMap[callHash(CI)].insert(ele);
 				}
 			}
-			
-			//This method cannot handle type casting in arguments
-			/*string fty_str = getTypeStr(f_funcTy);
-			if(checkStringContainSubString(fty_str, funcTy_str)){
-				for(auto ele : func_set){
-					Ctx->sigFuncsMap[callHash(CI)].insert(ele);
-				}
-			}*/
+			else{
+				//OP<<"not found\n";
+			}
 		}
 	}
 	FS = Ctx->sigFuncsMap[callHash(CI)];
+}
+
+void CallGraphPass::getTargetsInDerivedClass(string class_name, int Idx, 
+	FuncSet &FS){
+
+	if(class_name == "")
+		return;
+
+	if(Ctx->Global_Class_Method_Index_Map.count(class_name) == 0)
+		return;
+
+	set<string> method_set;
+	
+	//First collect all virtual calls of current class
+	for(string method_name : Ctx->Global_Class_Method_Index_Map[class_name][Idx]){
+		method_set.insert(method_name);
+	}
+
+	//Then collect virtual calls of derived class
+	list<string> worklist;
+	set<string> analyzedlist;
+	worklist.push_back(class_name);
+
+	while (!worklist.empty()) {
+
+		string current_class_name = worklist.front();
+		worklist.pop_front();
+		if (analyzedlist.find(current_class_name) != analyzedlist.end()){
+			continue;
+		}
+		analyzedlist.insert(current_class_name);
+
+		if(Ctx->Global_Class_Method_Index_Map.count(current_class_name) == 0)
+			continue;
+
+		if(Ctx->Global_VTable_Map.count(current_class_name) == 0)
+			continue;
+
+		for(string method_name : method_set){
+
+			if(Ctx->Global_VTable_Map[current_class_name].count(method_name) == 0)
+				continue;
+
+			for(auto vf : Ctx->Global_VTable_Map[current_class_name][method_name]){
+				if (Function *F = dyn_cast<Function>(vf)) {
+					FS.insert(F);
+				}
+			}
+		}
+
+		if(Ctx->GlobalClassHierarchyMap.count(current_class_name)){
+			for(string derived_class_name : Ctx->GlobalClassHierarchyMap[current_class_name])
+				worklist.push_back(derived_class_name);
+		}
+	}
 }

@@ -2,6 +2,10 @@
 
 This project includes a prototype implementation of TFA. The foundation behind TFA lies in the complementary nature of type-based analysis and data-flow analysis when it comes to resolving indirect-call targets. By combining the strengths of both analyses, TFA incorporates a co-analysis system that iteratively refines the global call graph. This iterative refinement process enables TFA to achieve an optimal indirect call analysis. 
 
+# Supported features 
+* Multi-layer type analysis for indirect call resolving in C and C++ programs.
+* Data-flow based indirect call resolving in C and C++ programs.
+* Class hierarchy analysis based virtual call analysis in C++ programs (supporting single and multiple inheritance). Note: RTTI info is required to enable this analysis.
 
 ## How to use TFA
 

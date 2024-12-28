@@ -95,6 +95,28 @@ std::string getInstFilename(Instruction *I){
 }
 
 //Used for debug
+std::string getCPPFuncName(Function *F){
+
+    if(!F){
+        //OP << "No such Func\n";
+        return "";
+    }
+        
+    //DILocation *Loc = dyn_cast<DILocation>(N);
+    MDNode *N = F->getMetadata("dbg");
+    if (!N)
+        return "";
+
+    //DILocation *Loc = F->getDebugLoc();
+    DISubprogram *Loc = dyn_cast<DISubprogram>(N);
+    if (!Loc ){
+		return "";
+    }
+
+    return Loc->getName().str();
+}
+
+//Used for debug
 string getBlockName(BasicBlock *bb){
     if(bb == NULL)
         return "NULL block";
@@ -181,6 +203,33 @@ void printBlockLineNoRange(BasicBlock *bb){
 
 //Used for debug
 void printFunctionMessage(Function *F){
+
+    if(!F)
+        return;
+     
+    //DILocation *Loc = dyn_cast<DILocation>(N);
+    MDNode *N = F->getMetadata("dbg");
+    if (!N)
+        return;
+
+    //DILocation *Loc = F->getDebugLoc();
+    DISubprogram *Loc = dyn_cast<DISubprogram>(N);
+    if (!Loc ){
+		return;
+    }
+
+    DIFile *DIF = dyn_cast<DIFile>(Loc->getFile());
+    if(!DIF){
+        return;
+    }
+
+    OP<<"File: "<<DIF->getFilename()<<"\n";
+    OP<<"Line: "<<Loc->getLine()<<"\n";
+    return;
+}
+
+//Used for debug
+void printFunctionSourceInfo(Function *F){
 
     if(!F)
         return;
