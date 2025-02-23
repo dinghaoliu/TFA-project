@@ -23,8 +23,8 @@ link_directories(${OMP_LIB_DRIS})
 
 # Set your mysql include path here
 # For Mac OS with mysql installed by brew, using the following flags
-set(MYSQL_INCLUDE_DIRS "/opt/homebrew/Cellar/mysql-client/9.0.1/include")
-set(MYSQL_LIB_DRIS "/opt/homebrew/Cellar/mysql-client/9.0.1/lib")
+set(MYSQL_INCLUDE_DIRS "/opt/homebrew/Cellar/mysql-client/9.2.0/include")
+set(MYSQL_LIB_DRIS "/opt/homebrew/Cellar/mysql-client/9.2.0/lib")
 include_directories(${MYSQL_INCLUDE_DIRS})
 link_directories(${MYSQL_LIB_DRIS})
 

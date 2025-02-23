@@ -3,7 +3,7 @@
 
 //#define PRINT_LAYER_SET
 //#define ENHANCED_ONE_LAYER_COLLECTION
-//#define ENABLE_FUNCTYPE_CAST
+#define ENABLE_FUNCTYPE_CAST
 //#define ENABLE_FUNCTYPE_ESCAPE
 //#define ENABLE_CONSERVATIVE_ESCAPE_HANDLER
 //#define DEBUG_SINGLE_INDIRECT_CALL
@@ -270,14 +270,15 @@ void CallGraphPass::getOneLayerResult(CallInst *CI, FuncSet &FS){
 	
 	FS = Ctx->sigFuncsMap[callHash(CI)];
 
-	// Handle function types with variable parameters
-	if(FS.empty()){
+// Handle function types with variable parameters
+// Handle function types with type casting in arguments	
 #ifdef ENABLE_FUNCTYPE_CAST
-		resolveVariableParameters(CI, FS, true);
+	resolveVariableParameters(CI, FS, true);
 #else
+	if(FS.empty()){
 		resolveVariableParameters(CI, FS, false);
-#endif
 	}
+#endif
 
 #ifdef ENABLE_FUNCTYPE_CAST
     for(size_t casthash : funcTypeCastMap[callHash(CI)]){
@@ -380,6 +381,13 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 #endif
 
 	getOneLayerResult(CI, FS1);
+
+#ifdef DEBUG_SINGLE_INDIRECT_CALL
+	OP<<"FS1 size: "<<FS1.size()<<"\n";
+	for(auto f : FS1){
+		OP<<"f: "<<f->getName()<<"\n";
+	}
+#endif
 
 #ifdef ENABLE_FUNCTYPE_ESCAPE
 

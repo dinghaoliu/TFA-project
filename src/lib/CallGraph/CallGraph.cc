@@ -12,6 +12,7 @@ using namespace llvm;
 //#define TEST_ONE_INIT_GLOBAL ""
 //#define TEST_ONE_INIT_STORE ""
 //#define ENABLE_CAST_ESCAPE
+#define ENABLE_BIDIRECTIONAL_TYPE_CASTING
 
 #define IGNORE_LINUX_STATIC_CALL 1
 
@@ -274,6 +275,15 @@ void CallGraphPass::handleIndirectCast(Type *FromTy, Type *ToTy){
 		Type *FromeleType = FromTy->getPointerElementType();
 		
 		if(ToeleType->isFunctionTy() && FromeleType->isFunctionTy()){
+
+			/*string to_ty_str = getTypeStr(ToeleType);
+			string from_ty_str = getTypeStr(FromeleType);
+			if(checkStringContainSubString(to_ty_str, "TfLiteContext.1233")){
+				OP<<"from_ty_str: "<<from_ty_str<<"\n";
+				OP<<"to_ty_str: "<<to_ty_str<<"\n";
+				
+			}*/
+
 			//OP<<"\nToeleType: "<<*ToeleType<<"\n";
 			//OP<<"FromeleType: "<<*FromeleType<<"\n";
 			FunctionType* FromFuncTy = dyn_cast<FunctionType>(FromeleType);
@@ -310,7 +320,7 @@ void CallGraphPass::handleIndirectCast(Type *FromTy, Type *ToTy){
 						transitType(ToArgTy, FromArgTy);
 						/*string to_ty_str = getTypeStr(ToArgTy);
 						string from_ty_str = getTypeStr(FromArgTy);
-						if(checkStringContainSubString(to_ty_str, "TfLiteContext.745")){
+						if(checkStringContainSubString(to_ty_str, "TfLiteContext.1233")){
 							//if(FromTy->isStructTy())
 							OP<<"\nfrom_ty_str: "<<from_ty_str<<"\n";
 							OP<<"to_ty_str: "<<to_ty_str<<"\n";
@@ -450,12 +460,21 @@ void CallGraphPass::transitType(Type *ToTy, Type *FromTy,
 		//This part is under testing
 		typeTransitMap[typeIdxHash(ToTy, ToIdx)].insert(typeIdxHash(FromTy, FromIdx));
 
+#ifdef ENABLE_BIDIRECTIONAL_TYPE_CASTING
+		typeTransitMap[typeIdxHash(FromTy, FromIdx)].insert(typeIdxHash(ToTy, ToIdx));
+#endif
+
 		hashIDTypeMap[typeIdxHash(ToTy,ToIdx)] = make_pair(ToTy,ToIdx);
 		hashIDTypeMap[typeIdxHash(FromTy,FromIdx)] = make_pair(FromTy,FromIdx);
 	}
 	else{
 		//may should iteratively update struct member info
 		typeTransitMap[typeHash(ToTy)].insert(typeHash(FromTy));
+
+#ifdef ENABLE_BIDIRECTIONAL_TYPE_CASTING
+		//Type casting should be bidirectional
+		typeTransitMap[typeHash(FromTy)].insert(typeHash(ToTy));
+#endif
 	}
 
 	hashTypeMap[typeHash(ToTy)] = ToTy;
