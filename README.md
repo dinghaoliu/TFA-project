@@ -62,6 +62,29 @@ By following these guidelines, you will ensure that LLVM bitcode files are suita
     * **caller_table**: To retrieve a list of target functions for a specific indirect call, you can look up the ***func_set_hash*** in this table. The ***func_set_hash*** serves as a unique identifier correlating to a set of target functions affiliated with an indirect call.
     * **func_table**: This table records the alias analysis results for each address-taken function.
 
+
+### Indirect Call Analysis Configuration
+
+TFA provides flexible analysis configurations through macros defined in`utils/Config.h`. These macros allow users to customize the analysis behavior for different scenarios, balancing between precision, performance, and analysis scope.
+
+#### Key Configuration Groups
+1. **Core Analysis Modes**  
+   Control fundamental analysis strategies like type and data-flow co-analysis (`ENABLE_DATA_FLOW_ANALYSIS`) and conservative fallback mechanisms (`ENABLE_CONSERVATIVE_ESCAPE_HANDLER`).
+
+2. **Type System Handling**  
+   Configure how type casting is interpreted, including function type casting (`ENABLE_FUNCTYPE_CAST`), bidirectional type casting (`ENABLE_BIDIRECTIONAL_TYPE_CASTING`), and void pointer handling (`ENABLE_CAST_ESCAPE`).
+
+3. **Advanced Features**  
+   Enable specialized analyses for C++ virtual calls (`ENABLE_VIRTUAL_CALL_ANALYSIS`), variadic functions (`ENABLE_VARIABLE_PARAMETER_ANALYSIS`), and enhanced LLVM IR pattern recognition (`ENABLE_ENHANCED_GEP_ANALYSIS`).
+
+#### Usage Guidelines
+- Modify `Config.h` by uncommenting `#define` statements to enable features
+- Rebuild the tool after configuration changes
+- Combine flags strategically - some features may have interdependencies
+
+Detailed features are marked with comments in the configuration file.
+
+
 ### Other issues and solutions
 * When compiling the analysis target with LLVM version 15 or higher, please disable the **opaque pointer** feature to ensure compatibility with the TFA. To do this, append the ***-no-opaque-pointers*** flag to your compiler options. Failure to specify this flag will result in TFA being unable to carry out pointer-to-type analysis. 
 * If you meet the following warning in building TFA on MacOS Sequoia, please install lld first (e.g., brew install lld) and add -fuse-ld=lld to the CXX FLAGS in building TFA.

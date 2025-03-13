@@ -12,7 +12,49 @@
 //
 // Configurations for compilation.
 //
-#define SOUND_MODE 1
+//#define SOUND_MODE 1
+
+/* Indirect Call Analysis Configuration */
+
+// Enables combined type and data-flow analysis for resolving indirect function calls
+#define ENABLE_DATA_FLOW_ANALYSIS
+
+// Enables handling of type casts using i8* (void pointer) as an intermediate type
+//#define ENABLE_CAST_ESCAPE
+
+// Treats type casts as bidirectional (e.g., if type_A casts to type_B, type_B can cast back to type_A)
+//#define ENABLE_BIDIRECTIONAL_TYPE_CASTING
+
+//Enables conservative shallow one-layer type matching with cast tolerance.
+// When enabled: Function types are considered equal if they either:
+// 1. Have identical signatures, OR
+// 2. Differ only in types with observed type casting in LLVM IRs
+//#define ENHANCED_ONE_LAYER_COLLECTION
+
+// Enables variadic function type analysis.
+// When enabled: Handles variable-argument functions (e.g., printf-style) with:
+// - Flexible argument count matching
+// - Cast-tolerant argument type matching
+//#define ENABLE_VARIABLE_PARAMETER_ANALYSIS
+
+// Allows casting between different function types even when signatures are incompatible
+#define ENABLE_FUNCTYPE_CAST
+
+// Treats any function cast to i8* (void pointer) as a potential target for all indirect calls
+//#define ENABLE_FUNCTYPE_ESCAPE
+
+// Fallback to one-layer type analysis if multi-layer analysis returns an empty target set without type escaping
+//#define ENABLE_CONSERVATIVE_ESCAPE_HANDLER
+
+//Enables C++ virtual call resolution using class hierarchy analysis (CHA)
+#define ENABLE_VIRTUAL_CALL_ANALYSIS
+
+// Enables advanced GEP instruction interpretation.
+// When enabled: Improves analysis of optimized GEP instructions by:
+// - Recovering struct type information from i8* base pointers
+// - Deriving field indices from constant offsets
+//#define ENABLE_ENHANCED_GEP_ANALYSIS
+
 
 static void SetIcallIgnoreList(vector<string> &IcallIgnoreFileLoc, 
 	vector<string> &IcallIgnoreLineNum) {

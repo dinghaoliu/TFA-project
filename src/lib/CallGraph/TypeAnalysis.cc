@@ -2,12 +2,7 @@
 #include <cstddef>
 
 //#define PRINT_LAYER_SET
-//#define ENHANCED_ONE_LAYER_COLLECTION
-#define ENABLE_FUNCTYPE_CAST
-//#define ENABLE_FUNCTYPE_ESCAPE
-//#define ENABLE_CONSERVATIVE_ESCAPE_HANDLER
 //#define DEBUG_SINGLE_INDIRECT_CALL
-#define ENABLE_VIRTUAL_CALL_ANALYSIS
 
 CallInst * current_CI;
 
@@ -272,7 +267,7 @@ void CallGraphPass::getOneLayerResult(CallInst *CI, FuncSet &FS){
 
 // Handle function types with variable parameters
 // Handle function types with type casting in arguments	
-#ifdef ENABLE_FUNCTYPE_CAST
+#ifdef ENABLE_VARIABLE_PARAMETER_ANALYSIS
 	resolveVariableParameters(CI, FS, true);
 #else
 	if(FS.empty()){
@@ -439,7 +434,7 @@ bool CallGraphPass::findCalleesWithMLTA(CallInst *CI, FuncSet &FS) {
 	int escapeTag = 0;
 	
 	if(layer_result){
-		//Once we step in here, CI must have all 2-layer info, one-layer case is imposible
+		//Once we step in here, CI must have all 2-layer info, one-layer case is impossible
 		for(CompositeType CT : TyList){
 			
 			LayerTy = CT.first;

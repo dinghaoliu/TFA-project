@@ -11,8 +11,6 @@ using namespace llvm;
 //#define TEST_ONE_FUNC ""
 //#define TEST_ONE_INIT_GLOBAL ""
 //#define TEST_ONE_INIT_STORE ""
-//#define ENABLE_CAST_ESCAPE
-#define ENABLE_BIDIRECTIONAL_TYPE_CASTING
 
 #define IGNORE_LINUX_STATIC_CALL 1
 
@@ -472,7 +470,7 @@ void CallGraphPass::transitType(Type *ToTy, Type *FromTy,
 		typeTransitMap[typeHash(ToTy)].insert(typeHash(FromTy));
 
 #ifdef ENABLE_BIDIRECTIONAL_TYPE_CASTING
-		//Type casting should be bidirectional
+		//Type casting should be bidirectional?
 		typeTransitMap[typeHash(FromTy)].insert(typeHash(ToTy));
 #endif
 	}
@@ -561,7 +559,7 @@ bool CallGraphPass::doInitialization(Module *M) {
 				Type *ToTy = CastI->getDestTy(), *FromTy = CastI->getSrcTy();
 				handleIndirectCast(FromTy, ToTy);
 #ifdef ENABLE_CAST_ESCAPE
-            handleCastEscapeType(CastI->getDestTy(), CastI->getSrcTy());
+            	handleCastEscapeType(CastI->getDestTy(), CastI->getSrcTy());
 #endif
 			}
 

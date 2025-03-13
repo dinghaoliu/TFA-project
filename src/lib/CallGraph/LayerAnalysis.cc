@@ -2,8 +2,6 @@
 
 using namespace llvm;
 
-#define ENABLE_ENHANCED_GEP_ANALYSIS
-
 // Get the composite type of the lower layer. 
 // Layers are split by memory loads
 // FIXME: do we need to consider store: we do it in OneLayerHandler
